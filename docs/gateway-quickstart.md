@@ -102,79 +102,70 @@ This lets `op` unlock through the app instead of asking for a password.
 
 ## Connecting to Badger Brain
 
-## Step 1 - Log in and connect to the **GlobalProtect** vpn.
+## Step 1 — Log in and connect to the **GlobalProtect** vpn.
 This is mandatory even if you're already on campus wifi.
 If you don't have the vpn set up yet, find instructions here:
 <https://kb.wisc.edu/ns/90370>.
 
-## Step 2 — Load it into your shell
+## Step 2 — Log in to 1Password in the shell
 
-Use the **1Password CLI** (`op`), which reads the key from your vault so
-it never appears in your shell history or your code.
-
-Install it once:
-
-```powershell
-# Windows
-winget install AgileBits.1Password.CLI
-```
-
-```bash
-# macOS
-brew install 1password-cli
-```
-
-Full instructions, including Linux:
-<https://developer.1password.com/docs/cli/get-started/>
-
-Enable the desktop integration: **1Password app → Settings → Developer →
-"Integrate with 1Password CLI"**, then quit and reopen the app. This is
-what lets `op` unlock through the app instead of asking for a password.
-
-Sign in, then confirm:
+Run the following code chunk. The first line will unlock 1Password.
+With the desktop integration on it may print nothing and returns immediately —
+that's fine. The second line, `op whoami`, is the check to ensure the login
+was successful. It should print your account and email; if it says *"account is not signed in"*,
+see the fallback below.
 
 ```
 op signin
 op whoami
 ```
 
-`op signin` prompts you to unlock 1Password the first time. With the
-desktop integration on it often prints nothing and returns immediately —
-that's fine, `op whoami` is the check. It should print your account and
-email; if it says *"account is not signed in"*, see the fallback below.
+>**If `op` won't authenticate**, open the item in the 1Password app or
+>browser extension, copy the key (likely saved under the term "credential"),
+>and set the variable for this session only. Replace "copied key" with your
+>specific key:
 
-Then load the key at the start of each session:
+```powershell
+$env:OPENAI_API_KEY = copied key      # PowerShell
+```
+
+```bash
+export OPENAI_API_KEY= copied key     # bash / zsh
+```
+
+## Step 3 — Load the key
+
+If you were able to log in to 1Password in your shell, load the key.
+(Skip this step if you copy and pasted the key directly.)
+
+Your item's path is determined by how it is saved in your 1Password.
+It will start with `op://`, followed by the name of the vault. If you get
+1Password through the University of Wisconsin and haven't customized your set-up,
+the vault name is likely `Employee`, but you can check by looking at the Vault tab on the left-hand
+menu of 1Password. Then give the name of the item, followed by `credential`. A complete
+path might read something like: "op://Employee/BadgerBrain/credential". In the following code,
+replace `Your Pathway` with your item's actual path.
 
 ```powershell
 # PowerShell — replace with your item's name
-$env:OPENAI_API_KEY = op read "op://Private/wams_bbadger/credential"
+$env:OPENAI_API_KEY = op read "Your Pathway"
 ```
 
 ```bash
 # bash / zsh
-export OPENAI_API_KEY=$(op read 'op://Private/wams_bbadger/credential')
+export OPENAI_API_KEY=$(op read 'Your Pathway')
 ```
 
-**If `op` won't authenticate**, open the item in the 1Password app or
-browser extension, copy the key, and set the variable for this session
-only:
+```
+
+To confirm the key is set, ask your shell to print the first few characters:
 
 ```powershell
-$env:OPENAI_API_KEY = "sk-..."      # PowerShell
+$env:OPENAI_API_KEY.Substring(0,6)     # PowerShell
 ```
 
 ```bash
-export OPENAI_API_KEY=sk-...        # bash / zsh
-```
-
-Confirm it's set. This prints only the first few characters:
-
-```powershell
-$env:OPENAI_API_KEY.Substring(0,6)     # PowerShell — expect sk-...
-```
-
-```bash
-echo ${OPENAI_API_KEY:0:6}             # bash / zsh — expect sk-...
+echo ${OPENAI_API_KEY:0:6}             # bash / zsh
 ```
 
 An error or blank line means it isn't set. Don't put the key in your
