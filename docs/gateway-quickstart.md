@@ -5,6 +5,16 @@ participant, a lab member, someone building an app. You call the models
 over HTTP from your own laptop, notebook, or server. You don't need a
 Run:ai account, and you never log into the cluster.
 
+>**Getting a key:** 
+>If you don't have a key yet, you can request one through the
+>[BadgerBrain access form](https://forms.gle/vkcLzApNrX7KbkTP9). It asks
+>which group or project you're with, so your usage lands under the right
+>team, and your NetID, so the firewall rule can be updated. The key
+>arrives as a **1Password share link** — that's the only way keys go out
+>here.
+>The link is locked to your `@wisc.edu` address and expires. If it has
+>expired or you lose it, request another.
+
 BadgerBrain is UW-Madison's gateway to open-weight models hosted on
 campus GPUs. It's at **`https://llm-gw01.doit.wisc.edu/v1`** and speaks the
 OpenAI API, so any client that lets you set a base URL works unmodified:
@@ -13,7 +23,7 @@ Postman.
 
 | Model | Type | Availability | Use it for |
 |-------|------|-------------|-----------|
-| `qwen3.8-27b` | chat | always on | General text: writing, reasoning, code, summarisation |
+| `qwen3.8-27b` | chat | always on | General text: writing, reasoning, code, summarization |
 | `churro-3b` | chat + vision | **wakes on demand** | OCR of historical documents and handwriting; send page images |
 | `qwen3-vl-embedding-8b` | embeddings | **wakes on demand** | 4096-dim vectors for search / RAG; handles text and images |
 
@@ -47,56 +57,55 @@ occupy most of that, so adding a model usually means trading one out.
 
 ## PowerShell and bash
 
-Commands come in pairs: **PowerShell first, then bash/zsh**. Three
-differences matter:
+This document includes commands for both **PowerShell** and **bash/zsh**.
 
-| | PowerShell | bash / zsh |
-|---|---|---|
-| Set a variable | `$env:NAME = "value"` | `export NAME=value` |
-| Use a variable | `$env:NAME` | `$NAME` |
-| `curl` | an *alias* for `Invoke-WebRequest` — use `Invoke-RestMethod`, or `curl.exe` for the real thing | real curl |
+Most MacOS and Linux systems use bash as their default shell. Windows users should
+use **PowerShell**, NOT **Git Bash**. The 1Password desktop app is not reliable for 
+Git Bash.
 
-PowerShell keeps environment variables in a separate `env:` namespace.
-`$OPENAI_API_KEY` without the prefix is an ordinary variable that doesn't
-exist; it evaluates to empty, the header becomes `"Bearer "`, and the
-gateway answers *"Malformed API Key"*.
+## First Time Set-Up: Saving Your Key
 
-> **On Windows, use PowerShell rather than Git Bash** for anything
-> involving `op`. The 1Password desktop integration refuses connections
-> from Git Bash and reports *"account is not signed in"*.
+>If you don't already have 1Password, you will need to request an
+>account and download the desktop app. Request the account at 
+><https://profile.wisc.edu/doit-services> (1Password under Eligible Services → Request Activation).
+>For instructions on downloading the desktop app, see <https://kb.wisc.edu/security/144301#install>.
 
-## Network access
+Once you have 1Password set up, go to the email you were sent, follow the **1Password share link**,
+and save the shared key. For details on this step, see [KB 144574](https://kb.wisc.edu/security/144574).
+This makes the key yours. Don't paste the key into a file, a notebook, or a chat
+message — it identifies you, and everything you run is recorded against it.
 
-Two things must be true before any of this works:
+## First Time Set-Up: Installing the 1Password Command-Line Interface (CLI)
 
-1. **You're on GlobalProtect**, including from on-campus wifi.
-2. **Your NetID has been added to the firewall rule.** Access to the
-   gateway is granted per person at the campus firewall, so being on the
-   VPN isn't enough on its own. Chris arranges this when you request a
-   key. It's a manual step with a lead time.
+The **1Password CLI** reads the key from your vault, ensuring the private
+credential never appears in your shell history or code. It's called using the command `op`.
 
-## Step 1 — Get your key, and save it
+**First**, install the CLI in your shell:
 
-**Don't have a key yet?** Request one through the
-[BadgerBrain access form](https://forms.gle/vkcLzApNrX7KbkTP9). It asks
-which group or project you're with, so your usage lands under the right
-team, and your NetID, so the firewall rule can be updated. The key
-arrives as a **1Password share link** — that's the only way keys go out
-here.
+```powershell
+# Windows
+winget install AgileBits.1Password.CLI
+```
 
-The link is locked to your `@wisc.edu` address and expires. If it has
-expired or you lose it, request another.
+```bash
+# macOS
+brew install 1password-cli
+```
 
-When you open it, **save the item into your UW-Madison 1Password
-account**. Accounts aren't automatic: if you don't have one, request it
-at <https://profile.wisc.edu/doit-services> (1Password under Eligible
-Services → Request Activation), then accept the invitation email from
-`accounts@1password.com` and sign in with your NetID — see
-[Getting Started with 1Password at UW-Madison](https://kb.wisc.edu/security/144301).
-Receiving a shared item is covered in
-[KB 144574](https://kb.wisc.edu/security/144574). From then on it's yours. Don't paste the key into a file, a notebook, or a chat
-message — it identifies you, and everything you run is recorded against
-it.
+Full instructions, including Linux:
+<https://developer.1password.com/docs/cli/get-started/>
+
+**Second**, enable the desktop integration. In the **1Password desktop app**,
+go to **Settings → Developer → "Integrate with 1Password CLI"**, then quit and reopen the app.
+This lets `op` unlock through the app instead of asking for a password.
+
+
+## Connecting to Badger Brain
+
+## Step 1 - Log in and connect to the **GlobalProtect** vpn.
+This is mandatory even if you're already on campus wifi.
+If you don't have the vpn set up yet, find instructions here:
+<https://kb.wisc.edu/ns/90370>.
 
 ## Step 2 — Load it into your shell
 
