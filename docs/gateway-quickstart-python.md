@@ -178,7 +178,7 @@ BadgerBrain in R; other configurations are possible as well.
 
 ### Python in JupyterLab
 
-**1. Navigate to where you want your project folder**
+**1. In the shell, navigate to where you want your project folder**
 
 
 **2. Create your juypter.env text file**
