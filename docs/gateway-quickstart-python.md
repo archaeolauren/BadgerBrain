@@ -103,6 +103,7 @@ This lets `op` unlock through the app instead of asking for a password.
 ## Connecting to Badger Brain
 
 ## Step 1 — Log in and connect to the **GlobalProtect** vpn.
+
 This is mandatory even if you're already on campus wifi.
 If you don't have the vpn set up yet, find instructions here:
 <https://kb.wisc.edu/ns/90370>.
@@ -147,15 +148,13 @@ path might read something like: "op://Employee/BadgerBrain/credential". In the f
 replace `Your Pathway` with your item's actual path.
 
 ```powershell
-# PowerShell — replace with your item's name
+# PowerShell
 $env:OPENAI_API_KEY = op read "Your Pathway"
 ```
 
 ```bash
 # bash / zsh
 export OPENAI_API_KEY=$(op read 'Your Pathway')
-```
-
 ```
 
 To confirm the key is set, ask your shell to print the first few characters:
@@ -171,45 +170,73 @@ echo ${OPENAI_API_KEY:0:6}             # bash / zsh
 An error or blank line means it isn't set. Don't put the key in your
 code.
 
-## Step 3 — Start your tools from that same terminal
+## Step 3 — Connect to BadgerBrain in your coding environment
 
-`python`, `jupyter lab`, `R`, `rstudio`, `code .` — launch whichever you
-use **from the shell where you just set the variable**.
+This step will vary depending on the environment you're using. We will provide instructions
+for Python in JupyterLab and R in RStudio, but it is perfectly possible to
+use others.
 
-The variable lives in that one shell session. A notebook opened from the
-Start menu or a desktop icon won't see it, and the client reports a
-missing API key. It's also gone when you close the terminal, so Step 2
-repeats each session unless you add it to your shell profile.
+### Python in JupyterLab or JupyterNotebook
 
-## Listing models
+**1. Navigate to where you want your project folder**
 
-The table at the top is a snapshot. To see the current list:
+
+**2. Create your juypter.env text file**
+
+This will hold the path to your security key and pass it to Jupyter.
+First, create and open a new text file:
+
+```powershell
+#Powershell
+edit jupyter.env
+```
+```bash
+#bash / zsh
+nano jupyter.env
+```
+
+A text editor should open. (If you use a different text editor, replace the command
+here as needed.) Enter the following in the text file, replacing "vault" and "your item"
+to create the same credential pathway you used above:
+
+```
+OPENAI_API_KEY=op://<vault>/<your item>/credential
+```
+Save and close the file using the drop-down menu and/or text editor shortcuts.
+
+**3. Open JupyterLab, passing it the .env**
 
 ```powershell
 # PowerShell
-(Invoke-RestMethod https://llm-gw01.doit.wisc.edu/v1/models `
-   -Headers @{ Authorization = "Bearer $env:OPENAI_API_KEY" }).data.id
+op run --env-file=.\jupyter.env -- jupyter lab
 ```
 
 ```bash
 # bash / zsh
-curl -s https://llm-gw01.doit.wisc.edu/v1/models \
-  -H "Authorization: Bearer $OPENAI_API_KEY"
+op run --env-file=./jupyter.env -- jupyter lab
 ```
+JupyterLab should open and automatically authenticate with 1Password.
 
-If this errors in PowerShell, see [PowerShell and bash](#powershell-and-bash).
+## Step 4  — Talking to BadgerBrain models
 
-## Python
-
-The `openai` package picks up `OPENAI_API_KEY` on its own, so the key
-never appears in your code:
+Start by (if necessary) installing the openai package, importing it,
+and specifying the value for the "client" variable.
 
 ```python
-# pip install openai
+pip install openai #Comment out or remove this line if the package is already installed
 from openai import OpenAI
 
 client = OpenAI(base_url="https://llm-gw01.doit.wisc.edu/v1", timeout=300)
+```
 
+Now you are ready to start querying the BadgerBrain models! Below are a few 
+pieces of code that will do that, depending on how you want to communicate
+and what data you're working with. The content variables here are examples only;
+change them to ask the models what you want to know. Also, change the model variable 
+to query the model you're looking for.
+
+**A. Default approach**
+```python
 resp = client.chat.completions.create(
     model="qwen3.8-27b",
     messages=[
@@ -220,7 +247,7 @@ resp = client.chat.completions.create(
 print(resp.choices[0].message.content)
 ```
 
-**Streaming**, so long answers appear as they're generated:
+**B. Streaming**, so long answers appear as they're generated:
 
 ```python
 stream = client.chat.completions.create(
@@ -233,7 +260,7 @@ for chunk in stream:
         print(chunk.choices[0].delta.content, end="", flush=True)
 ```
 
-**Embeddings** — one call, many texts:
+**C. Embeddings** — one call, many texts:
 
 ```python
 texts = ["the mitochondria is the powerhouse", "badgers dig burrows"]
@@ -242,7 +269,7 @@ vectors = [d.embedding for d in resp.data]
 print(len(vectors), "vectors of", len(vectors[0]), "dimensions")
 ```
 
-**Images** (CHURRO for document OCR) — images go inline as base64:
+**D. Images** (CHURRO for document OCR) — images go inline as base64:
 
 ```python
 import base64
@@ -261,61 +288,6 @@ resp = client.chat.completions.create(
 print(resp.choices[0].message.content)
 ```
 
-### JupyterLab and notebooks
-
-A notebook kernel inherits its environment from whatever launched the
-**Jupyter server**, not from the notebook. So the key has to be in place
-before the server starts. Three ways, best first:
-
-**1. Launch Jupyter through `op run`.** 1Password resolves the key at
-launch and the server inherits it; nothing is written to disk. Put a
-*reference* (not a key) in `jupyter.env`:
-
-```
-OPENAI_API_KEY=op://<vault>/<your item>/credential
-```
-
-```powershell
-# PowerShell
-op run --env-file=.\jupyter.env -- jupyter lab
-```
-
-```bash
-# bash / zsh
-op run --env-file=./jupyter.env -- jupyter lab
-```
-
-That file is safe to commit — it holds no secret. Activate your venv or
-conda env first if you use one; `op run` passes it through.
-
-**2. Set the variable, then launch from the same shell** (Step 2, then
-Step 3). Simplest if you're already in a terminal:
-
-```powershell
-$env:OPENAI_API_KEY = op read "op://<vault>/<your item>/credential"
-jupyter lab
-```
-
-**3. Prompt for it inside the notebook.** If the server is already
-running and you don't want to restart it, `getpass` takes the key
-without it appearing in the cell, the output, or the `.ipynb` file:
-
-```python
-import os, getpass
-os.environ["OPENAI_API_KEY"] = getpass.getpass("OPENAI_API_KEY: ")
-```
-
-Run that once per server session — it survives kernel restarts only if
-you re-run it, so put it in a cell near the top rather than deleting it.
-
-> **Calling `op` from inside a notebook** — `subprocess.run(["op",
-> "read", "op://..."])` — usually fails with *"account is not signed
-> in"*. The 1Password desktop integration authorises by calling
-> application, and `python.exe` isn't one it accepts. Use `op run` at
-> launch instead.
-
-The same applies to VS Code: open it with `code .` from the shell that
-has the variable, or the integrated terminal won't have it either.
 
 ## R
 
