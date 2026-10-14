@@ -172,11 +172,11 @@ code.
 
 ## Step 3 — Connect to BadgerBrain in your coding environment
 
-This step will vary depending on the environment you're using. We will provide instructions
-for Python in JupyterLab and R in RStudio, but it is perfectly possible to
-use others.
+This step will vary depending on the environment you're using. This document provides
+instructions for Python in JupyterLab; see [Quickstart R](gateway-quickstart-R.md) for connecting to 
+BadgerBrain in R; other configurations are possible as well.
 
-### Python in JupyterLab or JupyterNotebook
+### Python in JupyterLab
 
 **1. Navigate to where you want your project folder**
 
@@ -288,160 +288,7 @@ resp = client.chat.completions.create(
 print(resp.choices[0].message.content)
 ```
 
-
-## R
-
-Two reasonable paths:
-
-| | Use when |
-|---|---|
-| **`ellmer`** | Chat. Handles conversation state, streaming, tool calling and structured output. **No embeddings support.** |
-| **`httr2`** | Embeddings, or when you want no LLM dependency and full control over the request |
-
-### ellmer (chat)
-
-```r
-# install.packages("ellmer")
-library(ellmer)
-
-chat <- chat_openai_compatible(
-  base_url = "https://llm-gw01.doit.wisc.edu/v1",
-  model    = "qwen3.8-27b",
-  api_key  = Sys.getenv("OPENAI_API_KEY")
-)
-
-chat$chat("Explain PCA in two sentences.")
-
-# the object keeps the conversation, so follow-ups have context
-chat$chat("Now give an example with gene expression data.")
-```
-
-Check `?chat_openai_compatible` if an argument name doesn't match —
-ellmer changes between releases. `chat_vllm()` is the same thing reading
-`VLLM_API_KEY` instead; either works.
-
-### httr2 (anything, including embeddings)
-
-```r
-# install.packages("httr2")
-library(httr2)
-
-gateway <- "https://llm-gw01.doit.wisc.edu/v1"
-key     <- Sys.getenv("OPENAI_API_KEY")
-stopifnot(nzchar(key))   # fails loudly if RStudio didn't inherit it
-
-chat <- function(prompt, model = "qwen3.8-27b") {
-  resp <- request(paste0(gateway, "/chat/completions")) |>
-    req_auth_bearer_token(key) |>
-    req_timeout(300) |>                       # cold starts, see below
-    req_body_json(list(
-      model    = model,
-      messages = list(list(role = "user", content = prompt))
-    )) |>
-    req_perform() |>
-    resp_body_json()
-
-  resp$choices[[1]]$message$content
-}
-
-cat(chat("Explain PCA in two sentences."))
-```
-
-**Embeddings** in R:
-
-```r
-embed <- function(texts, model = "qwen3-vl-embedding-8b") {
-  resp <- request(paste0(gateway, "/embeddings")) |>
-    req_auth_bearer_token(key) |>
-    req_timeout(300) |>
-    req_body_json(list(model = model, input = as.list(texts))) |>
-    req_perform() |>
-    resp_body_json()
-
-  # one row per input text
-  do.call(rbind, lapply(resp$data, \(d) unlist(d$embedding)))
-}
-
-m <- embed(c("badgers dig burrows", "the mitochondria is the powerhouse"))
-dim(m)   # 2 x 4096
-```
-
-> **`Error: nzchar(key) is not TRUE` means `Sys.getenv("OPENAI_API_KEY")`
-> came back empty** — RStudio was started without inheriting your shell
-> environment (Step 3). Your key is fine. Two ways to fix it:
->
-> **Persist it** (what most RStudio users want):
->
-> ```r
-> usethis::edit_r_environ()      # opens ~/.Renviron
-> ```
->
-> Add one line — no quotes, no `export`:
->
-> ```
-> OPENAI_API_KEY=sk-...
-> ```
->
-> Then **Session → Restart R** — `.Renviron` is read only at startup.
-> Check with `nchar(Sys.getenv("OPENAI_API_KEY"))`.
->
-> Call `edit_r_environ()` with no arguments so it edits the **user-level**
-> file in your home directory. `edit_r_environ("project")` writes one into
-> the project folder, where it gets committed. And never put the key in a
-> `.R` script.
->
-> **Just for this session**, if you'd rather not keep the key on disk —
-> pops a dialog, you paste into it, and nothing lands in your console
-> history or a file:
->
-> ```r
-> Sys.setenv(OPENAI_API_KEY = rstudioapi::askForSecret("OPENAI_API_KEY"))
-> ```
->
-> Gone when R restarts. `.Renviron` is plaintext on disk; prefer this on
-> a shared machine.
-
-### Keeping the key out of `.Renviron`
-
-There is no 1Password SDK for R — the official ones are Go, JS and Python
-— so the options are the CLI or the OS keychain.
-
-**Launch RStudio through `op run`.** 1Password resolves the reference at
-launch and RStudio inherits the real value; nothing is written to disk.
-Put a *reference* (not a key) in `rstudio.env`:
-
-```
-OPENAI_API_KEY=op://<vault>/<your item>/credential
-```
-
-```powershell
-# Windows PowerShell / Windows Terminal — close RStudio first
-op run --env-file=.\rstudio.env -- "C:\Program Files\RStudio\rstudio.exe"
-```
-
-```bash
-# macOS
-op run --env-file=./rstudio.env -- open -a RStudio
-```
-
-That file is safe to commit — it contains no secret.
-
-> **Not from RStudio's Terminal pane.** That tab is a separate process
-> from the R console, so variables set there never reach `Sys.getenv()`.
-> Run `op run` from a real terminal with RStudio closed. Already in a
-> session? Use `keyring` below.
-
-**`keyring`**, if `op` won't cooperate. Uses Windows Credential Manager
-or the macOS Keychain, so still no plaintext file:
-
-```r
-keyring::key_set("litellm")                                  # once, prompts
-Sys.setenv(OPENAI_API_KEY = keyring::key_get("litellm"))     # each session
-```
-
-**Calling `op` from inside R** (`system2("op", c("read", "op://..."))`)
-usually fails with *"account is not signed in"*: the desktop integration
-authorises by calling application, and `rsession` isn't one it accepts.
+# Additional Information
 
 ## Use the gateway URL, not model hostnames
 
