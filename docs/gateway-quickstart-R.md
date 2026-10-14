@@ -176,7 +176,44 @@ This step will vary depending on the environment you're using. This document cov
 using R in RStudio; see  [Quickstart in Python](gateway-quickstart-python.md) for
 how to do this in Python. Many other set-ups are also possible.
 
+**1. In the shell, navigate to where you want your project folder**
 
+**2. Create your rstudio.env text file**
+
+This will hold the path to your security key and pass it to RStudio.
+First, create and open a new text file:
+
+```powershell
+#Powershell
+edit rstudio.env
+```
+```bash
+#bash / zsh
+nano rstudio.env
+```
+
+A text editor should open. (If you use a different text editor, replace the command
+here as needed.) Enter the following in the text file, replacing "vault" and "your item"
+to create the same credential pathway you used above:
+
+```
+OPENAI_API_KEY=op://<vault>/<your item>/credential
+```
+Save and close the file using the drop-down menu and/or text editor shortcuts.
+
+**3. Open RStudio from the console, passing it the .env**
+
+```powershell
+# Windows PowerShell — close RStudio first
+op run --env-file=.\rstudio.env -- "C:\Program Files\RStudio\rstudio.exe"
+```
+
+```bash
+#bash / zsh
+op run --env-file=./rstudio.env -- open -a RStudio
+```
+
+## Step 4  — Talking to BadgerBrain models
 
 There are two recommended packages for communicating with remote models in R:
 
@@ -210,7 +247,7 @@ Check `?chat_openai_compatible` if an argument name doesn't match —
 ellmer changes between releases. `chat_vllm()` is the same thing reading
 `VLLM_API_KEY` instead; either works.
 
-### httr2 (can handle embeddings)
+### B. httr2 (can handle embeddings)
 
 ```r
 install.packages("httr2") #Exclude this line of code if httr2 is already installed 
@@ -264,80 +301,36 @@ One error you might see could look like this:
  came back empty** 
  
  This happens when RStudio doesn't correctly inherit your shell
- environment (Step 3). Your key is fine. Two ways to fix it:
->
-> **Persist it** (what most RStudio users want):
->
-> ```r
-> usethis::edit_r_environ()      # opens ~/.Renviron
-> ```
->
-> Add one line — no quotes, no `export`:
->
-> ```
-> OPENAI_API_KEY=sk-...
-> ```
->
-> Then **Session → Restart R** — `.Renviron` is read only at startup.
-> Check with `nchar(Sys.getenv("OPENAI_API_KEY"))`.
->
-> Call `edit_r_environ()` with no arguments so it edits the **user-level**
-> file in your home directory. `edit_r_environ("project")` writes one into
-> the project folder, where it gets committed. And never put the key in a
-> `.R` script.
->
-> **Just for this session**, if you'd rather not keep the key on disk —
-> pops a dialog, you paste into it, and nothing lands in your console
-> history or a file:
->
-> ```r
-> Sys.setenv(OPENAI_API_KEY = rstudioapi::askForSecret("OPENAI_API_KEY"))
-> ```
->
-> Gone when R restarts. `.Renviron` is plaintext on disk; prefer this on
-> a shared machine.
-
-### Keeping the key out of `.Renviron`
-
-There is no 1Password SDK for R — the official ones are Go, JS and Python
-— so the options are the CLI or the OS keychain.
-
-**Launch RStudio through `op run`.** 1Password resolves the reference at
-launch and RStudio inherits the real value; nothing is written to disk.
-Put a *reference* (not a key) in `rstudio.env`:
-
-```
-OPENAI_API_KEY=op://<vault>/<your item>/credential
-```
-
-```powershell
-# Windows PowerShell / Windows Terminal — close RStudio first
-op run --env-file=.\rstudio.env -- "C:\Program Files\RStudio\rstudio.exe"
-```
-
-```bash
-# macOS
-op run --env-file=./rstudio.env -- open -a RStudio
-```
-
-That file is safe to commit — it contains no secret.
-
-> **Not from RStudio's Terminal pane.** That tab is a separate process
-> from the R console, so variables set there never reach `Sys.getenv()`.
-> Run `op run` from a real terminal with RStudio closed. Already in a
-> session? Use `keyring` below.
-
-**`keyring`**, if `op` won't cooperate. Uses Windows Credential Manager
-or the macOS Keychain, so still no plaintext file:
+ environment (Step 3). Your key is fine. To fix it:
 
 ```r
-keyring::key_set("litellm")                                  # once, prompts
-Sys.setenv(OPENAI_API_KEY = keyring::key_get("litellm"))     # each session
+ usethis::edit_r_environ()      # opens ~/.Renviron
 ```
 
-**Calling `op` from inside R** (`system2("op", c("read", "op://..."))`)
-usually fails with *"account is not signed in"*: the desktop integration
-authorises by calling application, and `rsession` isn't one it accepts.
+Add one line — no quotes, no `export`. Replace "Your path" with the pathway to your key.
+
+```
+OPENAI_API_KEY= "Your path"
+```
+
+Then **Session → Restart R** — `.Renviron` is read only at startup.
+To check that it worked: `nchar(Sys.getenv("OPENAI_API_KEY"))`
+
+| What you see | What it usually means |
+|---|---|
+| Hang, or `Unable to connect to the remote server` | Not on GlobalProtect, or your NetID isn't in the firewall rule yet — see [Network access](#network-access) |
+| `Malformed API Key ... Ensure Key has 'Bearer ' prefix` | Your key never made it into the header. In PowerShell, check you wrote `$env:OPENAI_API_KEY` and not `$OPENAI_API_KEY`, and that any `$headers` variable was built *after* setting it — it captures the value at assignment. In Python, restart the process after setting the variable |
+| `Cannot bind parameter 'Headers'` or `A drive with the name 'https' does not exist` | You ran a bash `curl` command in PowerShell, where `curl` aliases `Invoke-WebRequest`. Use `Invoke-RestMethod`, or `curl.exe` |
+| `Invalid proxy key` / 401 | Wrong key, or it expired — ask for a new share link |
+| `404 ... Model Group=...` | Model name typo, or it was removed. Re-check `/v1/models` |
+| Timeout on the first call | Cold start — raise your client timeout to 300s and retry |
+| 429 | Rate limited. Back off and retry; if it's persistent, ask for a higher limit |
+
+Lost your key? Request a replacement through the
+[access form](https://forms.gle/vkcLzApNrX7KbkTP9). Anything else:
+contact Chris with the model name and the exact error text.
+
+# Additional Information
 
 ## Use the gateway URL, not model hostnames
 
@@ -363,22 +356,6 @@ curl -s https://llm-gw01.doit.wisc.edu/key/info \
 ```
 
 That shows your key's limits and what it's spent so far.
-
-## Troubleshooting
-
-| What you see | What it usually means |
-|---|---|
-| Hang, or `Unable to connect to the remote server` | Not on GlobalProtect, or your NetID isn't in the firewall rule yet — see [Network access](#network-access) |
-| `Malformed API Key ... Ensure Key has 'Bearer ' prefix` | Your key never made it into the header. In PowerShell, check you wrote `$env:OPENAI_API_KEY` and not `$OPENAI_API_KEY`, and that any `$headers` variable was built *after* setting it — it captures the value at assignment. In Python, restart the process after setting the variable |
-| `Cannot bind parameter 'Headers'` or `A drive with the name 'https' does not exist` | You ran a bash `curl` command in PowerShell, where `curl` aliases `Invoke-WebRequest`. Use `Invoke-RestMethod`, or `curl.exe` |
-| `Invalid proxy key` / 401 | Wrong key, or it expired — ask for a new share link |
-| `404 ... Model Group=...` | Model name typo, or it was removed. Re-check `/v1/models` |
-| Timeout on the first call | Cold start — raise your client timeout to 300s and retry |
-| 429 | Rate limited. Back off and retry; if it's persistent, ask for a higher limit |
-
-Lost your key? Request a replacement through the
-[access form](https://forms.gle/vkcLzApNrX7KbkTP9). Anything else:
-contact Chris with the model name and the exact error text.
 
 ## Scope
 
