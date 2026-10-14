@@ -176,8 +176,6 @@ This step will vary depending on the environment you're using. This document pro
 instructions for Python in JupyterLab; see [Quickstart R](gateway-quickstart-R.md) for connecting to 
 BadgerBrain in R; other configurations are possible as well.
 
-### Python in JupyterLab
-
 **1. In the shell, navigate to where you want your project folder**
 
 
